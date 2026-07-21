@@ -23,6 +23,14 @@ import {
   matchesFoodFilter,
 } from "./food-browser";
 import {
+  composeProfileWeight,
+  PROFILE_AGE_OPTIONS,
+  PROFILE_HEIGHT_OPTIONS,
+  PROFILE_WEIGHT_TENTH_OPTIONS,
+  PROFILE_WEIGHT_WHOLE_OPTIONS,
+  splitProfileWeight,
+} from "./profile-controls";
+import {
   foodFromOpenFoodFacts,
   getFoodSourceMeta,
   parseFoodText,
@@ -1737,10 +1745,12 @@ function Modal({
   title,
   onClose,
   children,
+  className = "",
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   const titleId = useId();
   useEffect(() => {
@@ -1763,7 +1773,7 @@ function Modal({
       }}
     >
       <section
-        className="modal"
+        className={`modal ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -2350,6 +2360,20 @@ function ProfileModal({
     (draft.goalMode === "cut" && draft.target >= draft.weight) ||
     (draft.goalMode === "gain" && draft.target <= draft.weight);
   const risky = draft.age < 18 || (bmi < 18.5 && draft.goalMode === "cut");
+  const setWeightPart = (
+    field: "weight" | "target",
+    part: "whole" | "tenth",
+    value: number,
+  ) => {
+    const current = splitProfileWeight(draft[field]);
+    const next = composeProfileWeight(
+      part === "whole" ? value : current.whole,
+      part === "tenth" ? value : current.tenth,
+    );
+    setDraft({ ...draft, [field]: next });
+  };
+  const weightParts = splitProfileWeight(draft.weight);
+  const targetParts = splitProfileWeight(draft.target);
   const valid =
     draft.name.trim() &&
     draft.age >= 18 &&
@@ -2361,7 +2385,11 @@ function ProfileModal({
     draft.target >= 20 &&
     draft.target <= 400;
   return (
-    <Modal title="個人資料與目標" onClose={onClose}>
+    <Modal
+      title="個人資料與目標"
+      onClose={onClose}
+      className="profile-modal"
+    >
       <div className="goal-selector">
         {(["cut", "maintain", "gain"] as GoalMode[]).map((m) => (
           <button
@@ -2373,6 +2401,19 @@ function ProfileModal({
           </button>
         ))}
       </div>
+      <label className="mobile-goal-field">
+        目標方向
+        <select
+          value={draft.goalMode}
+          onChange={(event) =>
+            setDraft({ ...draft, goalMode: event.target.value as GoalMode })
+          }
+        >
+          <option value="cut">減脂</option>
+          <option value="maintain">維持</option>
+          <option value="gain">增肌</option>
+        </select>
+      </label>
       <div className="form-grid">
         <label>
           顯示名稱
@@ -2395,53 +2436,97 @@ function ProfileModal({
         </label>
         <label>
           年齡
-          <input
-            type="number"
-            min="18"
-            max="100"
+          <select
             value={draft.age}
             onChange={(e) =>
               setDraft({ ...draft, age: Number(e.target.value) })
             }
-          />
+          >
+            {PROFILE_AGE_OPTIONS.map((age) => (
+              <option value={age} key={age}>
+                {age} 歲
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           身高（cm）
-          <input
-            type="number"
-            min="120"
-            max="230"
+          <select
             value={draft.height}
             onChange={(e) =>
               setDraft({ ...draft, height: Number(e.target.value) })
             }
-          />
+          >
+            {PROFILE_HEIGHT_OPTIONS.map((height) => (
+              <option value={height} key={height}>
+                {height} cm
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           目前體重（kg）
-          <input
-            type="number"
-            min="20"
-            max="400"
-            step=".1"
-            value={draft.weight}
-            onChange={(e) =>
-              setDraft({ ...draft, weight: Number(e.target.value) })
-            }
-          />
+          <span className="weight-select-row">
+            <select
+              aria-label="目前體重公斤"
+              value={weightParts.whole}
+              onChange={(event) =>
+                setWeightPart("weight", "whole", Number(event.target.value))
+              }
+            >
+              {PROFILE_WEIGHT_WHOLE_OPTIONS.map((weight) => (
+                <option value={weight} key={weight}>
+                  {weight}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="目前體重小數"
+              value={weightParts.tenth}
+              onChange={(event) =>
+                setWeightPart("weight", "tenth", Number(event.target.value))
+              }
+            >
+              {PROFILE_WEIGHT_TENTH_OPTIONS.map((tenth) => (
+                <option value={tenth} key={tenth}>
+                  .{tenth}
+                </option>
+              ))}
+            </select>
+            <span>kg</span>
+          </span>
         </label>
         <label>
           目標體重（kg）
-          <input
-            type="number"
-            min="20"
-            max="400"
-            step=".1"
-            value={draft.target}
-            onChange={(e) =>
-              setDraft({ ...draft, target: Number(e.target.value) })
-            }
-          />
+          <span className="weight-select-row">
+            <select
+              aria-label="目標體重公斤"
+              value={targetParts.whole}
+              onChange={(event) =>
+                setWeightPart("target", "whole", Number(event.target.value))
+              }
+            >
+              {PROFILE_WEIGHT_WHOLE_OPTIONS.map((weight) => (
+                <option value={weight} key={weight}>
+                  {weight}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="目標體重小數"
+              value={targetParts.tenth}
+              onChange={(event) =>
+                setWeightPart("target", "tenth", Number(event.target.value))
+              }
+            >
+              {PROFILE_WEIGHT_TENTH_OPTIONS.map((tenth) => (
+                <option value={tenth} key={tenth}>
+                  .{tenth}
+                </option>
+              ))}
+            </select>
+            <span>kg</span>
+          </span>
         </label>
         <label className="span-2">
           非運動日常活動
