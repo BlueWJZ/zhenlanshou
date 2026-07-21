@@ -41,6 +41,7 @@ test("renders the main app with production safety headers", async () => {
   );
   const html = await response.text();
   assert.match(html, developmentPreviewMeta);
+  assert.match(html, /viewport-fit=cover/);
   assert.match(html, /真藍瘦/);
 });
 
